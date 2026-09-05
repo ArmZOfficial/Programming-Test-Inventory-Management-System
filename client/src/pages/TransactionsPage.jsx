@@ -4,25 +4,39 @@ import { getErrorMessage, getTransactions } from '../api/inventoryApi';
 import { Card, EmptyState, ErrorState, formatDateTime, formatNumber } from '../components/ui.jsx';
 
 /** ประวัติการเคลื่อนไหวสต็อกทั้งระบบ — กรองด้วยประเภท IN / OUT */
+const PAGE_SIZE = 20;
+
 export default function TransactionsPage() {
   const [type, setType] = useState('');
+  const [page, setPage] = useState(1);
   const [items, setItems] = useState([]);
+  const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: 0 });
   const [state, setState] = useState({ loading: true, error: null });
 
   const load = useCallback(async () => {
     setState({ loading: true, error: null });
     try {
-      const { data } = await getTransactions(type ? { type } : {});
+      const params = { page, limit: PAGE_SIZE };
+      if (type) params.type = type;
+
+      const { data } = await getTransactions(params);
       setItems(data.data);
+      setMeta({ page: data.page, totalPages: data.totalPages, total: data.total });
       setState({ loading: false, error: null });
     } catch (err) {
       setState({ loading: false, error: getErrorMessage(err) });
     }
-  }, [type]);
+  }, [type, page]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  /** เปลี่ยนตัวกรองแล้วต้องกลับไปหน้าแรกเสมอ ไม่งั้นอาจค้างอยู่หน้าที่ไม่มีข้อมูล */
+  const changeType = (value) => {
+    setType(value);
+    setPage(1);
+  };
 
   const filters = [
     { value: '', label: 'ทั้งหมด' },
@@ -40,7 +54,7 @@ export default function TransactionsPage() {
       </div>
 
       <Card
-        title={`พบ ${formatNumber(items.length)} รายการ`}
+        title={`พบ ${formatNumber(meta.total)} รายการ`}
         actions={
           <div className="btn-group">
             {filters.map((f) => (
@@ -48,7 +62,7 @@ export default function TransactionsPage() {
                 key={f.value}
                 type="button"
                 className={`btn btn--sm${type === f.value ? ' btn--primary' : ''}`}
-                onClick={() => setType(f.value)}
+                onClick={() => changeType(f.value)}
               >
                 {f.label}
               </button>
@@ -107,6 +121,30 @@ export default function TransactionsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!state.error && !state.loading && meta.totalPages > 1 && (
+          <div className="pagination">
+            <span>
+              หน้า {meta.page} จาก {meta.totalPages} · แสดง {items.length} จาก {formatNumber(meta.total)} รายการ
+            </span>
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={meta.page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              ← ก่อนหน้า
+            </button>
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={meta.page >= meta.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              ถัดไป →
+            </button>
           </div>
         )}
       </Card>

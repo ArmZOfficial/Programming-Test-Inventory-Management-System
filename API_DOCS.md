@@ -370,12 +370,18 @@ curl "http://localhost:4000/api/products?q=acer&page=1&limit=10"
 |---|---|---|
 | `productId` | int | กรองเฉพาะสินค้ารายการเดียว |
 | `type` | string | `IN` หรือ `OUT` |
+| `page` | int | หน้าที่ต้องการ (ค่าเริ่มต้น `1`) |
+| `limit` | int | จำนวนต่อหน้า (ค่าเริ่มต้น `20`, สูงสุด 200) |
 
 **Response 200 (Success)**
 
 ```json
 {
   "count": 2,
+  "total": 2,
+  "page": 1,
+  "limit": 20,
+  "totalPages": 1,
   "data": [
     {
       "id": 7,
@@ -408,7 +414,7 @@ curl "http://localhost:4000/api/products?q=acer&page=1&limit=10"
 **ตัวอย่าง cURL**
 
 ```bash
-curl "http://localhost:4000/api/stock/transactions?productId=1&type=OUT"
+curl "http://localhost:4000/api/stock/transactions?type=OUT&page=1&limit=20"
 ```
 
 ---

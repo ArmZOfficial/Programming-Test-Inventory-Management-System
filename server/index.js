@@ -266,13 +266,28 @@ app.get(
       where.type = t;
     }
 
-    const data = await prisma.stockTransaction.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: { product: { select: { id: true, name: true, sku: true } } },
-    });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 20));
 
-    res.json({ count: data.length, data });
+    const [total, data] = await Promise.all([
+      prisma.stockTransaction.count({ where }),
+      prisma.stockTransaction.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: { product: { select: { id: true, name: true, sku: true } } },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    res.json({
+      count: data.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+      data,
+    });
   })
 );
 

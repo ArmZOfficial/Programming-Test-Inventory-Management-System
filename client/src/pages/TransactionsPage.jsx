@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getErrorMessage, getTransactions } from '../api/inventoryApi';
+import Pagination from '../components/Pagination.jsx';
 import { Card, EmptyState, ErrorState, formatDateTime, formatNumber } from '../components/ui.jsx';
 
 /** ประวัติการเคลื่อนไหวสต็อกทั้งระบบ — กรองด้วยประเภท IN / OUT */
@@ -124,28 +125,14 @@ export default function TransactionsPage() {
           </div>
         )}
 
-        {!state.error && !state.loading && meta.totalPages > 1 && (
-          <div className="pagination">
-            <span>
-              หน้า {meta.page} จาก {meta.totalPages} · แสดง {items.length} จาก {formatNumber(meta.total)} รายการ
-            </span>
-            <button
-              type="button"
-              className="btn btn--sm"
-              disabled={meta.page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              ← ก่อนหน้า
-            </button>
-            <button
-              type="button"
-              className="btn btn--sm"
-              disabled={meta.page >= meta.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              ถัดไป →
-            </button>
-          </div>
+        {!state.error && !state.loading && (
+          <Pagination
+            page={meta.page}
+            totalPages={meta.totalPages}
+            total={meta.total}
+            showing={items.length}
+            onChange={setPage}
+          />
         )}
       </Card>
     </div>

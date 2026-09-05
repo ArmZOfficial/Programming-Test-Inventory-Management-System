@@ -1067,6 +1067,48 @@ textarea {
   flex-wrap: wrap;
 }
 
+.pagination__info {
+  margin-right: auto;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pager__page {
+  min-width: 34px;
+  padding-left: 8px;
+  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pager__dots {
+  padding: 0 4px;
+  color: var(--text-subtle);
+  user-select: none;
+}
+
+.pager__jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pager__jump label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pager__jump .input {
+  width: 72px;
+  padding: 5px 8px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Progress bar (ระดับสต็อก) ---- */
 .meter {
   width: 76px;

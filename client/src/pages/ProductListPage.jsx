@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCategories, getErrorMessage, getProducts } from '../api/inventoryApi';
+import Pagination from '../components/Pagination.jsx';
 import ProductTable from '../components/ProductTable.jsx';
 import StockAdjustModal from '../components/StockAdjustModal.jsx';
 import { EmptyState, ErrorState } from '../components/ui.jsx';
@@ -158,28 +159,14 @@ export default function ProductListPage({ onChanged }) {
               }
             />
 
-            {meta.totalPages > 1 && (
-              <div className="pagination">
-                <span>
-                  หน้า {meta.page} จาก {meta.totalPages}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  disabled={meta.page <= 1}
-                  onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
-                >
-                  ← ก่อนหน้า
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  disabled={meta.page >= meta.totalPages}
-                  onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
-                >
-                  ถัดไป →
-                </button>
-              </div>
+            {!state.loading && (
+              <Pagination
+                page={meta.page}
+                totalPages={meta.totalPages}
+                total={meta.total}
+                showing={products.length}
+                onChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+              />
             )}
           </>
         )}

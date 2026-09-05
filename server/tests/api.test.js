@@ -12,9 +12,17 @@ const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
 
-// ---- ชี้ไปยัง DB สำหรับเทสก่อน import app (dotenv จะไม่ override ค่าที่ตั้งไว้แล้ว) ----
+// ---- เลือกฐานข้อมูลที่จะทดสอบ (ต้องตั้งก่อน import app — dotenv ไม่ override ค่าที่ตั้งไว้แล้ว) ----
+//
+//   ค่าเริ่มต้น            → SQLite (prisma/test.db) รันได้ทันที ไม่ต้องมี DB server
+//   ตั้ง TEST_DATABASE_URL → ทดสอบกับ PostgreSQL จริง เช่น
+//        TEST_DATABASE_URL="postgresql://postgres:postgres@localhost:55432/postgres" npm test
+//
+const PG_URL = process.env.TEST_DATABASE_URL;
+const USE_PG = Boolean(PG_URL);
+
 const TEST_DB_PATH = path.join(__dirname, '..', 'prisma', 'test.db');
-process.env.DATABASE_URL = 'file:./test.db';
+process.env.DATABASE_URL = USE_PG ? PG_URL : 'file:./test.db';
 process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
@@ -23,18 +31,25 @@ let app;
 let prisma;
 
 before(() => {
-  // ล้าง DB เทสเก่าทิ้ง แล้วสร้าง schema ใหม่จาก schema.prisma
-  for (const f of [TEST_DB_PATH, TEST_DB_PATH + '-journal']) {
-    if (fs.existsSync(f)) fs.rmSync(f);
-  }
-
   // เรียก Prisma CLI ผ่าน node โดยตรง (ข้าม npx.cmd ที่ spawn ไม่ได้บน Windows + Node 26)
   const prismaCli = path.join(__dirname, '..', 'node_modules', 'prisma', 'build', 'index.js');
-  execFileSync(process.execPath, [prismaCli, 'db', 'push', '--skip-generate'], {
-    cwd: path.join(__dirname, '..'),
-    env: { ...process.env, DATABASE_URL: 'file:./test.db' },
-    stdio: 'ignore',
-  });
+  const run = (args) =>
+    execFileSync(process.execPath, [prismaCli, ...args], {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+      stdio: 'ignore',
+    });
+
+  if (USE_PG) {
+    // PostgreSQL: คาดว่า schema ถูก migrate ไว้แล้ว (npm run pg:deploy) เหมือนบน production จริง
+    // ที่ไม่รัน migrate ตอนเทส เพราะ production ก็ไม่ควร migrate อัตโนมัติจากโค้ดเทส
+  } else {
+    // SQLite: ล้างไฟล์ DB เทสเก่าทิ้ง แล้วสร้าง schema ใหม่จาก schema.prisma
+    for (const f of [TEST_DB_PATH, TEST_DB_PATH + '-journal']) {
+      if (fs.existsSync(f)) fs.rmSync(f);
+    }
+    run(['db', 'push', '--skip-generate']);
+  }
 
   app = require('../index');
   prisma = app.locals.prisma;
@@ -346,5 +361,144 @@ describe('Routing', () => {
     const res = await request(app).get('/api/products/low-stock');
     assert.equal(res.status, 200);
     assert.ok(Array.isArray(res.body.data));
+  });
+});
+
+/* ================================================================== */
+describe('Categories CRUD', () => {
+  test('อ่านรายละเอียดหมวดหมู่ + สินค้าในหมวด', async () => {
+    const cat = await request(app).post('/api/categories').send({ name: 'IT', description: 'ไอที' });
+    await request(app)
+      .post('/api/products')
+      .send({ name: 'Laptop', sku: 'CRUD-1', costPrice: 100, categoryId: cat.body.id });
+
+    const res = await request(app).get(`/api/categories/${cat.body.id}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.name, 'IT');
+    assert.equal(res.body.products.length, 1);
+    assert.equal(res.body._count.products, 1);
+  });
+
+  test('อ่านรายละเอียดหมวดหมู่ที่ไม่มีอยู่ → 404', async () => {
+    const res = await request(app).get('/api/categories/999999');
+    assert.equal(res.status, 404);
+  });
+
+  test('แก้ไขชื่อและคำอธิบายได้', async () => {
+    const cat = await request(app).post('/api/categories').send({ name: 'เก่า' });
+    const res = await request(app)
+      .patch(`/api/categories/${cat.body.id}`)
+      .send({ name: 'ใหม่', description: 'คำอธิบายใหม่' });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.name, 'ใหม่');
+    assert.equal(res.body.description, 'คำอธิบายใหม่');
+  });
+
+  test('แก้ไขเป็นชื่อที่ซ้ำกับหมวดอื่น → 409', async () => {
+    await request(app).post('/api/categories').send({ name: 'A' });
+    const b = await request(app).post('/api/categories').send({ name: 'B' });
+
+    const res = await request(app).patch(`/api/categories/${b.body.id}`).send({ name: 'A' });
+    assert.equal(res.status, 409);
+  });
+
+  test('แก้ไขหมวดหมู่ที่ไม่มีอยู่ → 404', async () => {
+    const res = await request(app).patch('/api/categories/999999').send({ name: 'X' });
+    assert.equal(res.status, 404);
+  });
+
+  test('แก้ไขโดยส่งชื่อว่าง → 400', async () => {
+    const cat = await request(app).post('/api/categories').send({ name: 'ห้ามว่าง' });
+    const res = await request(app).patch(`/api/categories/${cat.body.id}`).send({ name: '   ' });
+    assert.equal(res.status, 400);
+  });
+
+  test('ลบหมวดหมู่ว่าง → สำเร็จ', async () => {
+    const cat = await request(app).post('/api/categories').send({ name: 'จะถูกลบ' });
+    const res = await request(app).delete(`/api/categories/${cat.body.id}`);
+
+    assert.equal(res.status, 200);
+    const check = await request(app).get(`/api/categories/${cat.body.id}`);
+    assert.equal(check.status, 404);
+  });
+
+  test('ลบหมวดหมู่ที่ยังมีสินค้า → 409 และต้องไม่ลบจริง', async () => {
+    const cat = await request(app).post('/api/categories').send({ name: 'มีสินค้า' });
+    await request(app)
+      .post('/api/products')
+      .send({ name: 'P', sku: 'CRUD-2', costPrice: 10, categoryId: cat.body.id });
+
+    const res = await request(app).delete(`/api/categories/${cat.body.id}`);
+    assert.equal(res.status, 409);
+    assert.equal(res.body.productCount, 1);
+
+    const check = await request(app).get(`/api/categories/${cat.body.id}`);
+    assert.equal(check.status, 200, 'หมวดหมู่ต้องยังอยู่');
+  });
+
+  test('ลบพร้อม force=true → ลบได้ และสินค้าไม่หาย (categoryId เป็น null)', async () => {
+    const cat = await request(app).post('/api/categories').send({ name: 'ลบแบบ force' });
+    const p = await request(app)
+      .post('/api/products')
+      .send({ name: 'P', sku: 'CRUD-3', costPrice: 10, categoryId: cat.body.id });
+
+    const res = await request(app).delete(`/api/categories/${cat.body.id}?force=true`);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.detachedProducts, 1);
+
+    const product = await request(app).get(`/api/products/${p.body.id}`);
+    assert.equal(product.status, 200, 'สินค้าต้องยังอยู่');
+    assert.equal(product.body.categoryId, null);
+  });
+
+  test('ลบหมวดหมู่ที่ไม่มีอยู่ → 404', async () => {
+    const res = await request(app).delete('/api/categories/999999');
+    assert.equal(res.status, 404);
+  });
+});
+
+/* ================================================================== */
+describe('ค้นหาสินค้าจากชื่อและรหัสสินค้า (SKU)', () => {
+  beforeEach(async () => {
+    const items = [
+      { name: 'Notebook Acer Aspire', sku: 'ACER-A14-001', costPrice: 1 },
+      { name: 'เมาส์ไร้สาย Logitech', sku: 'LOG-M331', costPrice: 1 },
+      { name: 'กระดาษ A4 80 แกรม', sku: 'PPR-A4-80', costPrice: 1 },
+    ];
+    for (const it of items) await request(app).post('/api/products').send(it);
+  });
+
+  test('ค้นด้วยชื่อสินค้าภาษาอังกฤษ', async () => {
+    const res = await request(app).get('/api/products?q=Notebook');
+    assert.equal(res.body.total, 1);
+    assert.equal(res.body.data[0].sku, 'ACER-A14-001');
+  });
+
+  test('ค้นด้วยชื่อสินค้าภาษาไทย', async () => {
+    const res = await request(app).get('/api/products?q=เมาส์');
+    assert.equal(res.body.total, 1);
+    assert.equal(res.body.data[0].sku, 'LOG-M331');
+  });
+
+  test('ค้นด้วยรหัสสินค้า (SKU) เต็ม', async () => {
+    const res = await request(app).get('/api/products?q=PPR-A4-80');
+    assert.equal(res.body.total, 1);
+  });
+
+  test('ค้นด้วย SKU บางส่วน', async () => {
+    const res = await request(app).get('/api/products?q=LOG');
+    assert.equal(res.body.total, 1);
+  });
+
+  test('ไม่สนตัวพิมพ์เล็ก/ใหญ่ (acer ต้องเจอ ACER-A14-001)', async () => {
+    const res = await request(app).get('/api/products?q=acer');
+    assert.equal(res.body.total, 1, 'การค้นหาต้องไม่สนตัวพิมพ์เล็ก/ใหญ่');
+  });
+
+  test('ค้นแล้วไม่เจอ → total = 0 (ไม่ error)', async () => {
+    const res = await request(app).get('/api/products?q=ไม่มีสินค้านี้แน่นอน');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.total, 0);
   });
 });

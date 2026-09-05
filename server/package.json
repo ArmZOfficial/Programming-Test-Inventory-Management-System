@@ -8,10 +8,19 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "seed": "node prisma/seed.js",
-    "migrate": "prisma migrate dev --name init",
+    "seed:history": "node prisma/seed-history.js",
     "test": "node --test tests/",
+    "migrate": "prisma migrate dev --name init",
     "migrate:deploy": "prisma migrate deploy",
-    "seed:history": "node prisma/seed-history.js"
+    "pg:start": "node scripts/pg-embedded.mjs",
+    "pg:deploy": "node scripts/pg-run.mjs deploy",
+    "pg:generate": "node scripts/pg-run.mjs generate",
+    "pg:seed": "node scripts/pg-run.mjs seed",
+    "pg:history": "node scripts/pg-run.mjs history",
+    "pg:dev": "node scripts/pg-run.mjs dev",
+    "pg:test": "node scripts/pg-run.mjs test",
+    "db:sqlite": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "keywords": [
     "inventory",
@@ -26,6 +35,7 @@
     "express": "^4.22.2"
   },
   "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
     "nodemon": "^3.1.14",
     "prisma": "^6.19.3",
     "supertest": "^7.2.2"

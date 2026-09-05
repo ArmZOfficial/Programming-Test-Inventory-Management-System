@@ -6,7 +6,17 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
+
+/**
+ * เลือก Prisma Client ตามฐานข้อมูลที่ตั้งไว้ใน DATABASE_URL
+ *   postgresql://... → client ที่ generate จาก prisma/postgres/schema.prisma
+ *   file:...         → client ที่ generate จาก prisma/schema.prisma (SQLite)
+ * แยกโฟลเดอร์กันไว้ จึงสลับไปมาได้โดยไม่ต้อง generate ใหม่ทุกครั้ง
+ */
+const IS_POSTGRES = String(process.env.DATABASE_URL || '').startsWith('postgres');
+const { PrismaClient } = IS_POSTGRES
+  ? require('./prisma/generated/postgres')
+  : require('./prisma/generated/sqlite');
 
 const app = express();
 const prisma = new PrismaClient();
@@ -25,6 +35,13 @@ const isNonNegativeNumber = (v) => typeof v === 'number' && Number.isFinite(v) &
 
 /** ครอบ async handler เพื่อส่ง error เข้า error middleware อัตโนมัติ */
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+/**
+ * ทำให้การค้นหาไม่สนตัวพิมพ์เล็ก/ใหญ่เหมือนกันทั้งสองฐานข้อมูล
+ * - PostgreSQL: ต้องระบุ mode: 'insensitive' (ไม่งั้น LIKE จะ case-sensitive)
+ * - SQLite: ไม่รองรับ mode และ LIKE ไม่สนตัวพิมพ์เล็ก/ใหญ่สำหรับ ASCII อยู่แล้ว
+ */
+const INSENSITIVE = IS_POSTGRES ? { mode: 'insensitive' } : {};
 
 /* ------------------------------------------------------------------ *
  * Health check
@@ -137,8 +154,13 @@ app.get(
       }
       where.categoryId = cid;
     }
-    if (q) {
-      where.OR = [{ name: { contains: String(q) } }, { sku: { contains: String(q) } }];
+    // ค้นหาจาก "ชื่อสินค้า" หรือ "รหัสสินค้า (SKU)" — พิมพ์บางส่วนก็เจอ และไม่สนตัวพิมพ์เล็ก/ใหญ่
+    if (q && String(q).trim() !== '') {
+      const keyword = String(q).trim();
+      where.OR = [
+        { name: { contains: keyword, ...INSENSITIVE } },
+        { sku: { contains: keyword, ...INSENSITIVE } },
+      ];
     }
 
     const [total, data] = await Promise.all([
@@ -324,6 +346,104 @@ app.post(
       }
       throw err;
     }
+  })
+);
+
+/** GET /api/categories/:id — รายละเอียดหมวดหมู่ + สินค้าที่อยู่ในหมวดนี้ */
+app.get(
+  '/api/categories/:id',
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: 'id ต้องเป็นจำนวนเต็ม' });
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: {
+        products: { orderBy: { name: 'asc' } },
+        _count: { select: { products: true } },
+      },
+    });
+
+    if (!category) return res.status(404).json({ error: 'ไม่พบหมวดหมู่' });
+    res.json(category);
+  })
+);
+
+/** PATCH /api/categories/:id — แก้ไขชื่อ/คำอธิบายหมวดหมู่ */
+app.patch(
+  '/api/categories/:id',
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: 'id ต้องเป็นจำนวนเต็ม' });
+    }
+
+    const { name, description } = req.body || {};
+    if (name === undefined && description === undefined) {
+      return res.status(400).json({ error: 'ต้องระบุอย่างน้อย name หรือ description' });
+    }
+    if (name !== undefined && String(name).trim() === '') {
+      return res.status(400).json({ error: 'name ห้ามเป็นค่าว่าง' });
+    }
+
+    const data = {};
+    if (name !== undefined) data.name = String(name).trim();
+    if (description !== undefined) data.description = description === null ? null : String(description).trim() || null;
+
+    try {
+      const updated = await prisma.category.update({ where: { id }, data });
+      return res.json(updated);
+    } catch (err) {
+      if (err.code === 'P2025') return res.status(404).json({ error: 'ไม่พบหมวดหมู่' });
+      if (err.code === 'P2002') return res.status(409).json({ error: 'ชื่อหมวดหมู่นี้มีอยู่แล้วในระบบ' });
+      throw err;
+    }
+  })
+);
+
+/**
+ * DELETE /api/categories/:id — ลบหมวดหมู่
+ * ถ้ายังมีสินค้าอยู่ในหมวดจะปฏิเสธด้วย 409 เพื่อกันลบพลาด
+ * ถ้ายืนยันจริงให้ส่ง ?force=true → สินค้าจะถูกย้ายไปเป็น "ไม่ระบุหมวดหมู่" (ไม่มีสินค้าหาย)
+ */
+app.delete(
+  '/api/categories/:id',
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({ error: 'id ต้องเป็นจำนวนเต็ม' });
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id },
+      include: { _count: { select: { products: true } } },
+    });
+    if (!category) return res.status(404).json({ error: 'ไม่พบหมวดหมู่' });
+
+    const productCount = category._count.products;
+    const force = String(req.query.force || '').toLowerCase() === 'true';
+
+    if (productCount > 0 && !force) {
+      return res.status(409).json({
+        error: `ลบไม่ได้ — ยังมีสินค้า ${productCount} รายการอยู่ในหมวดหมู่นี้`,
+        productCount,
+        hint: 'ส่ง ?force=true เพื่อลบและย้ายสินค้าเหล่านี้ไปเป็น "ไม่ระบุหมวดหมู่"',
+      });
+    }
+
+    // ปลดสินค้าออกจากหมวด แล้วค่อยลบ — ทำใน transaction เดียวกันเพื่อความถูกต้อง
+    await prisma.$transaction([
+      prisma.product.updateMany({ where: { categoryId: id }, data: { categoryId: null } }),
+      prisma.category.delete({ where: { id } }),
+    ]);
+
+    res.json({
+      message: 'ลบหมวดหมู่เรียบร้อย',
+      deletedId: id,
+      detachedProducts: productCount,
+    });
   })
 );
 

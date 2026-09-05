@@ -32,7 +32,11 @@ export const getTransactions = (params = {}) => api.get('/stock/transactions', {
 
 /* ---------------------------- Categories -------------------------- */
 export const getCategories = () => api.get('/categories');
+export const getCategory = (id) => api.get(`/categories/${id}`);
 export const createCategory = (data) => api.post('/categories', data);
+export const updateCategory = (id, data) => api.patch(`/categories/${id}`, data);
+export const deleteCategory = (id, force = false) =>
+  api.delete(`/categories/${id}`, { params: force ? { force: true } : {} });
 
 /* ----------------------------- Health ----------------------------- */
 export const getHealth = () => api.get('/health');

@@ -1224,3 +1224,43 @@ textarea {
     display: none;
   }
 }
+
+/* ---- ปุ่มลบแบบเส้นขอบ (ใช้ในตารางที่การลบไม่ควรเด่นเกินไป) ---- */
+.btn--danger-outline {
+  color: var(--danger-fg);
+  border-color: var(--danger-bg);
+  background: var(--danger-bg);
+}
+
+.btn--danger-outline:hover:not(:disabled) {
+  background: var(--danger-fg);
+  border-color: var(--danger-fg);
+  color: #fff;
+}
+
+/* ---- ปุ่มที่ทำหน้าที่เป็นลิงก์ในตาราง ---- */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--brand-600);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+/* ---- แถวที่กำลังถูกแก้ไขอยู่ ---- */
+.table tbody tr.is-editing {
+  background: var(--brand-50);
+  box-shadow: inset 3px 0 0 var(--brand-500);
+}
+
+/* ปุ่มจัดการในตารางต้องอยู่บรรทัดเดียว ไม่ตกบรรทัด */
+.table .actions .btn-group {
+  flex-wrap: nowrap;
+}

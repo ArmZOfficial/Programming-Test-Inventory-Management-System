@@ -23,7 +23,10 @@
 | 6 | `GET` | `/api/stock/transactions` | ประวัติการเคลื่อนไหวทั้งระบบ |
 | 7 | `GET` | `/api/categories` | รายการหมวดหมู่ |
 | 8 | `POST` | `/api/categories` | สร้างหมวดหมู่ |
-| 9 | `GET` | `/api/health` | ตรวจสอบสถานะ API |
+| 9 | `GET` | `/api/categories/:id` | รายละเอียดหมวดหมู่ + สินค้าในหมวด |
+| 10 | `PATCH` | `/api/categories/:id` | แก้ไขหมวดหมู่ |
+| 11 | `DELETE` | `/api/categories/:id` | ลบหมวดหมู่ (กันลบเมื่อยังมีสินค้า) |
+| 12 | `GET` | `/api/health` | ตรวจสอบสถานะ API |
 
 ### HTTP Status Codes ที่ระบบใช้
 
@@ -499,7 +502,148 @@ curl "http://localhost:4000/api/stock/transactions?type=OUT&page=1&limit=20"
 
 ---
 
-## 9. GET /api/health
+## 9. GET /api/categories/:id
+
+ดูรายละเอียดหมวดหมู่ พร้อมรายการสินค้าทั้งหมดในหมวดนั้น
+
+- **Method:** `GET`
+- **URL:** `/api/categories/1`
+
+**Response 200 (Success)**
+
+```json
+{
+  "id": 1,
+  "name": "คอมพิวเตอร์ & โน้ตบุ๊ก",
+  "description": "เครื่องคอมพิวเตอร์และโน้ตบุ๊กทุกรุ่น",
+  "createdAt": "2026-09-05T06:10:02.114Z",
+  "products": [
+    {
+      "id": 3,
+      "name": "MacBook Air M3 13\"",
+      "sku": "APL-MBA-M3",
+      "categoryId": 1,
+      "costPrice": 38900,
+      "stockQuantity": 4,
+      "createdAt": "2026-09-05T06:10:02.400Z",
+      "updatedAt": "2026-09-05T06:10:02.400Z"
+    }
+  ],
+  "_count": { "products": 3 }
+}
+```
+
+**Response 404 (ไม่พบหมวดหมู่)**
+
+```json
+{ "error": "ไม่พบหมวดหมู่" }
+```
+
+---
+
+## 10. PATCH /api/categories/:id
+
+แก้ไขชื่อหรือคำอธิบายหมวดหมู่ (ส่งเฉพาะฟิลด์ที่ต้องการแก้ก็ได้)
+
+- **Method:** `PATCH`
+- **URL:** `/api/categories/1`
+- **Headers:** `Content-Type: application/json`
+
+**Request Body**
+
+| ฟิลด์ | ชนิด | จำเป็น | คำอธิบาย |
+|---|---|---|---|
+| `name` | string | ❌* | ชื่อใหม่ (ห้ามซ้ำ, ห้ามว่าง) |
+| `description` | string \| null | ❌* | คำอธิบายใหม่ (ส่ง `null` เพื่อล้างค่า) |
+
+\* ต้องส่งอย่างน้อย 1 ฟิลด์
+
+```json
+{
+  "name": "IT Equipment",
+  "description": "อุปกรณ์ไอทีทั้งหมด"
+}
+```
+
+**Response 200 (Success)**
+
+```json
+{
+  "id": 1,
+  "name": "IT Equipment",
+  "description": "อุปกรณ์ไอทีทั้งหมด",
+  "createdAt": "2026-09-05T06:10:02.114Z"
+}
+```
+
+**Response 400 (ไม่ส่งฟิลด์ / ชื่อว่าง)**
+
+```json
+{ "error": "ต้องระบุอย่างน้อย name หรือ description" }
+```
+```json
+{ "error": "name ห้ามเป็นค่าว่าง" }
+```
+
+**Response 404 / 409**
+
+```json
+{ "error": "ไม่พบหมวดหมู่" }
+```
+```json
+{ "error": "ชื่อหมวดหมู่นี้มีอยู่แล้วในระบบ" }
+```
+
+---
+
+## 11. DELETE /api/categories/:id
+
+ลบหมวดหมู่ — **ถ้ายังมีสินค้าอยู่ในหมวดจะถูกปฏิเสธ (409) เพื่อกันลบพลาด**
+
+- **Method:** `DELETE`
+- **URL:** `/api/categories/1`
+
+**Query Parameters**
+
+| พารามิเตอร์ | ชนิด | คำอธิบาย |
+|---|---|---|
+| `force` | boolean | ส่ง `true` เพื่อยืนยันลบทั้งที่ยังมีสินค้า — **สินค้าจะไม่ถูกลบ** แต่ถูกย้ายไปเป็น "ไม่ระบุหมวดหมู่" (`categoryId = null`) |
+
+**Response 200 (Success)**
+
+```json
+{
+  "message": "ลบหมวดหมู่เรียบร้อย",
+  "deletedId": 1,
+  "detachedProducts": 3
+}
+```
+
+**Response 409 (ยังมีสินค้าอยู่ในหมวดหมู่)**
+
+```json
+{
+  "error": "ลบไม่ได้ — ยังมีสินค้า 3 รายการอยู่ในหมวดหมู่นี้",
+  "productCount": 3,
+  "hint": "ส่ง ?force=true เพื่อลบและย้ายสินค้าเหล่านี้ไปเป็น \"ไม่ระบุหมวดหมู่\""
+}
+```
+
+**Response 404 (ไม่พบหมวดหมู่)**
+
+```json
+{ "error": "ไม่พบหมวดหมู่" }
+```
+
+**ตัวอย่าง cURL**
+
+```bash
+curl -X DELETE "http://localhost:4000/api/categories/1?force=true"
+```
+
+---
+
+## 12. GET /api/health
 
 ตรวจสอบว่า API พร้อมใช้งาน (ใช้โดยหน้าเว็บเพื่อแสดงสถานะการเชื่อมต่อ)
 

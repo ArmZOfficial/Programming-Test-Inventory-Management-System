@@ -1,14 +1,22 @@
-// Inventory Management System — Prisma Schema
-// Datasource: SQLite (dev-fast, ไม่ต้องตั้ง DB server)
+// ============================================================================
+// Inventory Management System — Prisma Schema สำหรับ PostgreSQL (production)
+//
+// โมเดลเหมือน prisma/schema.prisma (SQLite) ทุกประการ ต่างกันแค่ provider
+// จึงใช้โค้ด API ตัวเดิมได้ 100% โดยไม่ต้องแก้อะไรเลย
+//
+//   dev / test  →  prisma/schema.prisma           (SQLite, ไม่ต้องตั้ง DB server)
+//   production  →  prisma/postgres/schema.prisma  (PostgreSQL)
+//
+// คำสั่ง:  npm run pg:deploy && npm run pg:generate
+// ============================================================================
 
 generator client {
   provider = "prisma-client-js"
-  // แยกโฟลเดอร์ client ของแต่ละฐานข้อมูล เพื่อให้สลับ SQLite <-> PostgreSQL ได้โดยไม่ทับกัน
-  output   = "./generated/sqlite"
+  output   = "../generated/postgres"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

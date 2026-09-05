@@ -1,0 +1,32 @@
+# PostgreSQL สำหรับรันระบบนี้ในโหมด PostgreSQL ด้วย Docker
+#
+#   docker compose up -d
+#   cd server
+#   PG_DATABASE_URL="postgresql://inventory:inventory@localhost:5432/inventory" npm run pg:deploy
+#   PG_DATABASE_URL="postgresql://inventory:inventory@localhost:5432/inventory" npm run pg:dev
+#
+# ถ้าไม่อยากติดตั้ง Docker ก็ใช้ PostgreSQL แบบฝังในโปรเจกต์แทนได้: `npm run pg:start`
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: inventory-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB: inventory
+      # สำคัญ: ต้องเป็น UTF8 เพราะข้อมูลสินค้าเป็นภาษาไทย
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U inventory -d inventory']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

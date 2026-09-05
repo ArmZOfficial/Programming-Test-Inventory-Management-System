@@ -3,27 +3,59 @@
 ระบบจัดการสินค้าคงคลัง — REST API + หน้าเว็บใช้งานจริง
 **Node.js (Express) + Prisma ORM + SQLite + React (Vite)**
 
-> ✅ ทดสอบอัตโนมัติ **30 เคส ผ่านทั้งหมด** — รันได้ในเครื่องตัวเอง ไม่ต้องติดตั้ง database server และไม่แตะข้อมูลจริง
+> ✅ ทดสอบอัตโนมัติ **46 เคส ผ่านทั้งหมด — ทั้งบน SQLite และ PostgreSQL** รันได้ในเครื่องตัวเองโดยไม่ต้องติดตั้ง database server และไม่แตะข้อมูลจริง
 
 ---
 
-## ⚠️ สถานะปัจจุบัน: ยังเป็น Development Mode
+## 🗄️ รองรับ 2 ฐานข้อมูล — SQLite (dev) และ PostgreSQL (production)
 
-ระบบนี้ตั้งค่าไว้สำหรับ **การพัฒนา/สาธิต** ยังไม่พร้อมเปิดใช้งานจริง:
+โค้ด API **ชุดเดียวกัน** ใช้ได้ทั้งสองฐานข้อมูล เพราะ logic ทั้งหมดอยู่บน Prisma และอยู่ใน database transaction อยู่แล้ว
 
-| หัวข้อ | ตอนนี้ |
-|---|---|
-| ฐานข้อมูล | **SQLite ไฟล์เดียว** (`server/prisma/dev.db`) — ไม่รองรับหลาย instance / ไม่มี backup |
-| ข้อมูล | เป็น **ข้อมูล seed ตัวอย่าง** ไม่ใช่ข้อมูลจริง |
-| Migration | ใช้ `prisma migrate dev` (ห้ามใช้บน production) |
-| CORS | เปิดทุก origin |
-| Authentication | **ยังไม่มี** — ใครยิง API ได้ก็แก้สต็อกได้ |
-| Frontend | รันด้วย Vite dev server (ยังไม่ได้ build เป็น static) |
+| โหมด | ใช้เมื่อ | คำสั่ง |
+|---|---|---|
+| **SQLite** (ค่าเริ่มต้น) | พัฒนา/ทดสอบในเครื่อง — ไม่ต้องติดตั้ง DB server | `npm run dev` · `npm test` |
+| **PostgreSQL** | ใช้งานจริง หรืออยากทดสอบให้เหมือน production | `npm run pg:start` แล้ว `npm run pg:dev` · `npm run pg:test` |
 
-👉 **วิธีทำให้พร้อมขึ้นใช้งานจริงทีละขั้น อยู่ใน [DEPLOYMENT.md](DEPLOYMENT.md)**
-(เปลี่ยนเป็น PostgreSQL, `migrate deploy`, จำกัด CORS, ใส่ auth + helmet + rate limit, build frontend, PM2/Docker, backup, monitoring)
+✅ **ชุดทดสอบ 46 เคส ผ่านครบทั้งสองฐานข้อมูล** (SQLite 46/46 · PostgreSQL 46/46)
 
-> ข่าวดี: **logic หลักไม่ต้องแก้เลยตอนย้ายขึ้น production** เพราะการอัปเดตสต็อกกับการบันทึกประวัติอยู่ใน database transaction เดียวกันตั้งแต่แรก
+### ทดสอบโหมด PostgreSQL โดยไม่ต้องติดตั้งอะไรเพิ่ม
+
+โปรเจกต์มี PostgreSQL ตัวจริงฝังมาให้ (`embedded-postgres`) — ไม่ต้องมี Docker หรือติดตั้ง PostgreSQL
+
+```bash
+cd server
+npm run pg:start     # terminal ที่ 1 — เปิด PostgreSQL ที่ localhost:55432 (สร้าง DB แบบ UTF8 ให้อัตโนมัติ)
+```
+
+```bash
+cd server
+npm run pg:deploy    # terminal ที่ 2 — apply migration
+npm run pg:seed      # ใส่ข้อมูลตัวอย่าง
+npm run pg:test      # รันชุดทดสอบทั้ง 46 เคสกับ PostgreSQL
+npm run pg:dev       # รัน API โดยใช้ PostgreSQL
+```
+
+ถ้ามี Docker และอยากใช้ PostgreSQL แบบ container:
+
+```bash
+docker compose up -d
+```
+
+แล้วชี้ปลายทางด้วย `PG_DATABASE_URL` เช่น
+
+```bash
+PG_DATABASE_URL="postgresql://inventory:inventory@localhost:5432/inventory" npm run pg:deploy
+```
+
+### สิ่งที่ PostgreSQL ให้เพิ่มจาก SQLite
+
+- **CHECK constraint กันสต็อกติดลบที่ระดับฐานข้อมูล** — `stockQuantity >= 0` เป็นด่านสุดท้ายนอกเหนือจาก logic ใน API
+- **จำกัดค่า `type` ให้เป็น `IN`/`OUT` เท่านั้น** และ `quantity > 0` (SQLite ทำไม่ได้)
+- **ค้นหาแบบไม่สนตัวพิมพ์เล็ก/ใหญ่** ด้วย `mode: 'insensitive'` (API ตรวจ provider ให้อัตโนมัติ)
+- รองรับหลาย connection พร้อมกัน → scale ได้จริง
+
+> ⚠️ ส่วนที่ยังต้องทำก่อนขึ้น production จริง: จำกัด CORS, เพิ่ม Authentication, helmet + rate limit, backup, HTTPS
+> รายละเอียดครบใน **[DEPLOYMENT.md](DEPLOYMENT.md)**
 
 ---
 
@@ -65,6 +97,11 @@
 
 ![เพิ่มสินค้า](docs/screenshots/07-product-form.png)
 
+### หมวดหมู่สินค้า — CRUD ครบวงจร
+เพิ่ม / แก้ไข / ลบ (มีหน้าต่างยืนยัน และเตือนเมื่อหมวดหมู่ยังมีสินค้าอยู่) / ดูรายละเอียดพร้อมรายการสินค้าในหมวดนั้น
+
+![หมวดหมู่สินค้า](docs/screenshots/09-categories.png)
+
 ### ธีมมืด (Dark mode)
 สลับได้จากปุ่มมุมขวาบน ระบบจำค่าที่เลือกไว้ให้
 
@@ -78,7 +115,7 @@
 |---|---|
 | [ER_DIAGRAM.md](ER_DIAGRAM.md) | แผนภาพ ER, ความสัมพันธ์, เหตุผลการออกแบบ, SQL จริง |
 | [API_DOCS.md](API_DOCS.md) | URL / Method / Header / Request Body / Response (success + error) ครบทุก endpoint |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | สถานะ dev mode ปัจจุบัน + ขั้นตอนทำให้พร้อมใช้งานจริง |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | ขั้นตอนทำให้พร้อมใช้งานจริง (CORS, auth, backup, monitoring) |
 
 ---
 
@@ -134,10 +171,10 @@ npm test
 โดยสร้างไฟล์ **SQLite แยกต่างหาก (`prisma/test.db`)** ที่ล้างใหม่ทุกครั้งก่อนรัน — **ไม่แตะฐานข้อมูลใช้งานจริง (`dev.db`)**
 
 ```
-ℹ tests 30
-ℹ suites 7
-ℹ pass 30
-ℹ fail 0
+SQLite               PostgreSQL
+ℹ tests 46           ℹ tests 46
+ℹ pass 46            ℹ pass 46
+ℹ fail 0             ℹ fail 0
 ```
 
 ครอบคลุม:
@@ -150,6 +187,8 @@ npm test
 - list / filter หมวดหมู่ / ค้นหา / รายละเอียด + ประวัติ / 404
 - หมวดหมู่: สร้าง, ชื่อซ้ำ (409), ไม่ระบุชื่อ (400)
 - routing: `/api/products/low-stock` ต้องไม่ถูกจับเป็น `/api/products/:id`
+- **CRUD หมวดหมู่ครบวงจร** — อ่านรายละเอียด, แก้ไข, ชื่อซ้ำ (409), ลบหมวดว่าง, ลบหมวดที่มีสินค้า (409), ลบแบบ force แล้วสินค้าต้องไม่หาย
+- **ค้นหาสินค้า** — จากชื่อไทย/อังกฤษ, จาก SKU เต็มและบางส่วน, ไม่สนตัวพิมพ์เล็ก/ใหญ่, ค้นไม่เจอต้องไม่ error
 
 ---
 
@@ -206,8 +245,9 @@ erDiagram
 | 4 | `GET` | `/api/products` | รายการสินค้า + ค้นหา + กรอง + แบ่งหน้า |
 | 5 | `GET` | `/api/products/:id` | รายละเอียด + ประวัติการเคลื่อนไหว |
 | 6 | `GET` | `/api/stock/transactions` | ประวัติทั้งระบบ (กรอง `productId`, `type`) |
-| 7 | `GET` / `POST` | `/api/categories` | จัดการหมวดหมู่ |
-| 8 | `GET` | `/api/health` | ตรวจสอบสถานะ API |
+| 7 | `GET` / `POST` | `/api/categories` | ดู/สร้างหมวดหมู่ |
+| 8 | `GET` / `PATCH` / `DELETE` | `/api/categories/:id` | ดูรายละเอียด / แก้ไข / ลบหมวดหมู่ |
+| 9 | `GET` | `/api/health` | ตรวจสอบสถานะ API |
 
 ตัวอย่าง Request/Response ครบทุกกรณี (success + error) อยู่ใน **[API_DOCS.md](API_DOCS.md)**
 
@@ -235,12 +275,12 @@ curl "http://localhost:4000/api/products/low-stock?threshold=5"
 | หน้า | เส้นทาง | จุดเด่น |
 |---|---|---|
 | ภาพรวม | `/dashboard` | เห็นสถานะคลังทั้งหมดใน 3 วินาที: จำนวน SKU, ชิ้นรวม, ใกล้หมด, หมดสต็อก, มูลค่าคงคลัง + ความเคลื่อนไหวล่าสุด |
-| รายการสินค้า | `/products` | ค้นหาแบบ debounce, กรองหมวดหมู่, แบ่งหน้า, แถบระดับสต็อก, ปุ่มปรับสต็อกในแถว |
+| รายการสินค้า | `/products` | **ค้นหาจากชื่อสินค้าและรหัสสินค้า (SKU)** แบบ debounce, กรองหมวดหมู่, แบ่งหน้า, แถบระดับสต็อก, ปุ่มปรับสต็อกในแถว |
 | เพิ่มสินค้า | `/products/new` | validate ทันทีรายช่อง + พรีวิวข้อมูลและมูลค่าก่อนบันทึก |
 | สินค้าใกล้หมด | `/low-stock` | ปรับเกณฑ์ได้ (3/5/10/20 หรือกรอกเอง) + badge บนเมนูบอกจำนวนที่ต้องเติม |
 | รายละเอียดสินค้า | `/products/:id` | ยอดรับเข้า/จ่ายออกสะสม + ไทม์ไลน์ประวัติทั้งหมด |
 | ประวัติสต็อก | `/transactions` | ดูทุกความเคลื่อนไหว กรอง IN / OUT + แบ่งหน้า (20 รายการ/หน้า) |
-| หมวดหมู่ | `/categories` | เพิ่มหมวดหมู่และดูจำนวนสินค้าต่อหมวด |
+| หมวดหมู่ | `/categories` | **CRUD ครบ** — เพิ่ม / แก้ไข / ลบ (มีหน้าต่างยืนยัน) / ดูรายละเอียดพร้อมรายการสินค้าในหมวด |
 
 **หลักการ UX ที่ใช้**
 
@@ -265,10 +305,12 @@ inventory-system/
 │   ├── index.js               # Express app + ทุก endpoint (export app ให้ test ใช้)
 │   ├── server.js              # entry point (listen)
 │   ├── prisma/
-│   │   ├── schema.prisma      # นิยาม 3 ตาราง
+│   │   ├── schema.prisma      # นิยาม 3 ตาราง (SQLite — dev/test)
+│   ├── postgres/          # schema + migration สำหรับ PostgreSQL (production)
 │   │   ├── seed.js            # ข้อมูลตัวอย่าง
-│   │   └── migrations/        # SQL migration ที่ commit ไว้จริง
-│   └── tests/api.test.js      # ชุดทดสอบ 30 เคส
+│   │   ├── migrations/        # SQL migration ของ SQLite
+│   └── seed-history.js    # จำลองการใช้งานย้อนหลัง 90 วัน
+│   └── tests/api.test.js      # ชุดทดสอบ 46 เคส (รันได้ทั้ง SQLite และ PostgreSQL)
 │
 ├── client/                    # Frontend (React + Vite)
 │   └── src/

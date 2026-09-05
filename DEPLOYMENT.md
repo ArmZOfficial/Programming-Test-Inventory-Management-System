@@ -1,18 +1,17 @@
 # 🚢 จาก Dev Mode → พร้อมใช้งานจริง (Production Readiness)
 
-> **สถานะปัจจุบัน: ระบบนี้ตั้งค่าเป็น _development mode_ ทั้งหมด** ยังไม่เหมาะกับการเปิดใช้งานจริง
-> เอกสารนี้บอกว่า "ตอนนี้เป็นอะไร" และ "ต้องทำอะไรบ้างถึงจะขึ้น production ได้"
-
----
+> **อัปเดต:** ระบบรองรับ **PostgreSQL แล้ว** — schema, migration และชุดทดสอบพร้อมใช้งานจริง
+> (`server/prisma/postgres/` · `npm run pg:test` ผ่าน 46/46)
+> เอกสารนี้เหลือเฉพาะสิ่งที่ยังต้องทำเพิ่มก่อนเปิดใช้งานจริง
 
 ## 1. ตอนนี้เป็น Dev Mode ยังไงบ้าง
 
 | หัวข้อ | สถานะตอนนี้ (dev) | ทำไมยังใช้จริงไม่ได้ |
 |---|---|---|
-| **ฐานข้อมูล** | **SQLite** — เป็นไฟล์เดียว `server/prisma/dev.db` | เขียนได้ทีละ connection, ไม่มี replication/backup, scale หลาย instance ไม่ได้ |
+| **ฐานข้อมูล** | ค่าเริ่มต้นเป็น **SQLite** (`server/prisma/dev.db`) — แต่**สลับไป PostgreSQL ได้แล้ว**ด้วย `npm run pg:*` | SQLite เขียนได้ทีละ connection, ไม่มี replication/backup → production ให้ใช้ PostgreSQL |
 | **ไฟล์ DB** | อยู่ในเครื่อง และถูก `.gitignore` ไว้ | ถ้า deploy ขึ้น container ที่ไม่มี volume ข้อมูลหายทุกครั้งที่ deploy |
 | **ข้อมูลในระบบ** | เป็น **ข้อมูล seed ตัวอย่าง** (4 หมวดหมู่, 12 สินค้า, ประวัติจำลอง) | ไม่ใช่ข้อมูลจริง ต้องล้างก่อนใช้งานจริง |
-| **Migration** | ใช้ `prisma migrate dev` (สร้าง migration ใหม่ + reset ได้) | คำสั่งนี้ **ห้ามใช้บน production** เพราะอาจลบข้อมูล |
+| **Migration** | dev ใช้ `prisma migrate dev` — production มี `npm run pg:deploy` (= `migrate deploy`) ให้แล้ว | `migrate dev` **ห้ามใช้บน production** เพราะอาจลบข้อมูล |
 | **CORS** | `app.use(cors())` = อนุญาตทุก origin | ใครก็ยิง API ได้จากทุกเว็บ |
 | **Authentication** | **ไม่มีเลย** | ใครเข้าถึง URL ได้ ก็แก้สต็อกได้ |
 | **Rate limiting** | ไม่มี | เสี่ยงถูกยิงถล่ม / abuse |
@@ -27,8 +26,9 @@
 
 ## 2. เช็กลิสต์ก่อนขึ้นจริง
 
-- [ ] ย้ายจาก SQLite → **PostgreSQL** (หรือ MySQL)
-- [ ] เปลี่ยนไปใช้ `prisma migrate deploy`
+- [x] ~~ย้ายจาก SQLite → **PostgreSQL**~~ — ทำแล้ว (`server/prisma/postgres/schema.prisma`)
+- [x] ~~เปลี่ยนไปใช้ `prisma migrate deploy`~~ — ทำแล้ว (`npm run pg:deploy`)
+- [x] ~~CHECK constraint กันสต็อกติดลบที่ระดับ DB~~ — ทำแล้วใน migration ของ PostgreSQL
 - [ ] ล้างข้อมูล seed ตัวอย่างออก
 - [ ] จำกัด CORS ให้เหลือเฉพาะโดเมนหน้าเว็บจริง
 - [ ] เพิ่ม **Authentication** (อย่างน้อย API key หรือ JWT)
@@ -44,38 +44,46 @@
 
 ## 3. ขั้นตอนทำจริง (ทีละข้อ)
 
-### 3.1 เปลี่ยนฐานข้อมูลเป็น PostgreSQL
+### 3.1 ใช้ PostgreSQL (พร้อมแล้ว ไม่ต้องแก้โค้ด)
 
-แก้ `server/prisma/schema.prisma`
+schema และ migration สำหรับ PostgreSQL อยู่ที่ **`server/prisma/postgres/`** เรียบร้อยแล้ว
+API เลือก Prisma Client ให้อัตโนมัติจากค่า `DATABASE_URL` — ขึ้นต้นด้วย `postgresql://` คือโหมด PostgreSQL
 
-```prisma
-datasource db {
-  provider = "postgresql"   // เดิม: "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-ตั้งค่า `DATABASE_URL` ใหม่ (ห้าม commit ไฟล์ `.env` ขึ้น git)
+ตั้งค่า `DATABASE_URL` ของ production (ห้าม commit ไฟล์ `.env`)
 
 ```env
 DATABASE_URL="postgresql://user:password@db-host:5432/inventory?schema=public&connection_limit=10"
 ```
 
-จากนั้นสร้าง migration ชุดใหม่ (migration เดิมเป็นไวยากรณ์ SQLite ใช้กับ Postgres ไม่ได้)
+แล้ว apply migration + generate client
 
 ```bash
-rm -rf server/prisma/migrations
-cd server && npx prisma migrate dev --name init_postgres
+cd server
+npm run pg:deploy      # = prisma migrate deploy --schema prisma/postgres/schema.prisma
+npm run pg:generate    # generate Prisma Client สำหรับ PostgreSQL
+npm start
 ```
 
-> **ข้อดีที่ได้ทันที:** ย้ายไป Postgres แล้ว การกันสต็อกติดลบจะแข็งแรงขึ้นอีกขั้น
-> เพราะ `prisma.$transaction` จะทำงานบน MVCC จริง รองรับหลาย instance พร้อมกันได้
-> (โค้ด API **ไม่ต้องแก้เลย** เพราะ logic ทั้งหมดอยู่ใน transaction อยู่แล้ว)
+> **สำคัญ:** ฐานข้อมูลต้องเป็น **encoding UTF8** เพราะข้อมูลสินค้าเป็นภาษาไทย
+> ```sql
+> CREATE DATABASE inventory WITH ENCODING 'UTF8' TEMPLATE template0;
+> ```
 
-**แนะนำเพิ่ม (Postgres รองรับ):** ใส่ constraint กันสต็อกติดลบที่ชั้น DB เป็นด่านสุดท้าย
+**สิ่งที่ migration ของ PostgreSQL ใส่ให้แล้ว** (SQLite ทำไม่ได้):
 
 ```sql
-ALTER TABLE "Product" ADD CONSTRAINT stock_non_negative CHECK ("stockQuantity" >= 0);
+ALTER TABLE "Product" ADD CONSTRAINT "Product_stockQuantity_non_negative" CHECK ("stockQuantity" >= 0);
+ALTER TABLE "StockTransaction" ADD CONSTRAINT "StockTransaction_type_check" CHECK ("type" IN ('IN', 'OUT'));
+ALTER TABLE "StockTransaction" ADD CONSTRAINT "StockTransaction_quantity_positive" CHECK ("quantity" > 0);
+```
+
+ทำให้กันสต็อกติดลบได้ **2 ชั้น** — ทั้งใน API และที่ตัวฐานข้อมูลเอง
+
+**อยากทดสอบก่อนขึ้นจริง** ใช้ PostgreSQL ที่ฝังมากับโปรเจกต์ได้เลย (ไม่ต้องมี Docker)
+
+```bash
+npm run pg:start    # terminal 1
+npm run pg:test     # terminal 2 — ชุดทดสอบ 46 เคสกับ PostgreSQL จริง
 ```
 
 ### 3.2 Migration บน production
@@ -213,8 +221,8 @@ API_KEY=<สุ่มค่ายาวๆ เก็บใน secret manager>
 ## 5. สิ่งที่ "พร้อมอยู่แล้ว" ไม่ต้องแก้
 
 - ✅ Logic กันสต็อกติดลบ + บันทึกประวัติ อยู่ใน database transaction เดียวกันแล้ว (ย้าย DB ได้เลยไม่ต้องแก้โค้ด)
-- ✅ Migration ถูก commit ไว้ใน repo (`server/prisma/migrations/`) ไม่ได้ push schema แบบมั่ว
+- ✅ Migration ถูก commit ไว้ใน repo ทั้งสองฐานข้อมูล (`server/prisma/migrations/` และ `server/prisma/postgres/migrations/`)
 - ✅ Validation ครบทุก endpoint + รูปแบบ error เป็นมาตรฐานเดียวกัน
 - ✅ มี `GET /api/health` สำหรับ uptime monitor
-- ✅ ชุดทดสอบ 30 เคส ใช้เป็น regression test ก่อน deploy ได้ทันที
+- ✅ ชุดทดสอบ 46 เคส (ผ่านทั้ง SQLite และ PostgreSQL) ใช้เป็น regression test ก่อน deploy ได้ทันที
 - ✅ Frontend อ่าน base URL จาก env แยก dev/production ได้

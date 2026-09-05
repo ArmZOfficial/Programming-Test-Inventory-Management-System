@@ -10,3 +10,10 @@ build/
 *.log
 npm-debug.log*
 .vite/
+
+# PostgreSQL แบบฝังในเครื่อง (สำหรับทดสอบโหมด PostgreSQL)
+**/prisma/.pg-data/
+**/prisma/.pg-embedded/
+
+# Prisma Client ที่ generate ขึ้นมา (สร้างใหม่ได้ด้วย npx prisma generate)
+**/prisma/generated/

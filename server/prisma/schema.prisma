@@ -1,0 +1,51 @@
+// Inventory Management System — Prisma Schema
+// Datasource: SQLite (dev-fast, ไม่ต้องตั้ง DB server)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// หมวดหมู่สินค้า — Category (1) → Products (N)
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  products    Product[]
+}
+
+/// สินค้า — เก็บ stockQuantity ปัจจุบันแบบ denormalized เพื่อ query เร็ว
+model Product {
+  id            Int                @id @default(autoincrement())
+  name          String
+  sku           String             @unique
+  categoryId    Int?
+  category      Category?          @relation(fields: [categoryId], references: [id])
+  costPrice     Float
+  stockQuantity Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  transactions  StockTransaction[]
+
+  @@index([categoryId])
+  @@index([stockQuantity])
+}
+
+/// ประวัติการเคลื่อนไหวสต็อก — source of truth ของการเปลี่ยนแปลงทุกครั้ง
+model StockTransaction {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String // "IN" | "OUT"
+  quantity  Int // เก็บเป็นค่าบวกเสมอ ทิศทางดูจาก type
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}

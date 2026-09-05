@@ -1,0 +1,31 @@
+{
+  "name": "inventory-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Inventory Management System API (Express + Prisma + SQLite)",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "seed": "node prisma/seed.js",
+    "migrate": "prisma migrate dev --name init",
+    "test": "node --test tests/"
+  },
+  "keywords": [
+    "inventory",
+    "express",
+    "prisma"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.22.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "prisma": "^6.19.3",
+    "supertest": "^7.2.2"
+  }
+}

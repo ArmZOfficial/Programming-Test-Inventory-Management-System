@@ -29,6 +29,24 @@ const products = [
   { name: 'สายชาร์จ USB-C 100W', sku: 'CBL-USBC-100', cat: 3, costPrice: 390, stock: 32 },
 ];
 
+/** ความเคลื่อนไหวตัวอย่าง — qty ลบ = จ่ายออก (OUT), บวก = รับเข้า (IN) */
+const movements = [
+  { sku: 'ACER-A14-001', qty: -2, reason: 'ขายหน้าร้าน บิล #INV-1042' },
+  { sku: 'ACER-A14-001', qty: -1, reason: 'เบิกให้ฝ่ายขายใช้เป็นเครื่องสาธิต' },
+  { sku: 'LOG-M331', qty: -6, reason: 'ขายส่งให้ร้านค้าปลีก PO#556' },
+  { sku: 'LOG-M331', qty: -2, reason: 'สินค้าชำรุดจากการขนส่ง' },
+  { sku: 'PPR-A4-80', qty: -25, reason: 'เบิกใช้ภายในสำนักงาน ประจำเดือน' },
+  { sku: 'PPR-A4-80', qty: 50, reason: 'รับสินค้าจาก PO#008' },
+  { sku: 'SSD-980-1TB', qty: -4, reason: 'ขายหน้าร้าน บิล #INV-1048' },
+  { sku: 'PEN-BOX50', qty: -3, reason: 'เบิกใช้ภายในสำนักงาน' },
+  { sku: 'CBL-USBC-100', qty: -9, reason: 'ขายออนไลน์ ออเดอร์เดือนนี้' },
+  { sku: 'SNY-XM5', qty: -3, reason: 'ขายหน้าร้าน บิล #INV-1051' },
+  { sku: 'LNV-IP3-002', qty: -2, reason: 'ขายหน้าร้าน บิล #INV-1053' },
+  { sku: 'KEY-K2-RGB', qty: -4, reason: 'ตัวอย่างสินค้าส่งให้ลูกค้า' },
+  { sku: 'RAM-KST-16', qty: 10, reason: 'รับสินค้าจาก PO#011 (เติมสต็อกด่วน)' },
+  { sku: 'RAM-KST-16', qty: -8, reason: 'ขายส่งช่างประกอบคอม' },
+];
+
 async function main() {
   console.log('🌱 กำลัง seed ข้อมูลตัวอย่าง...');
 
@@ -72,6 +90,36 @@ async function main() {
     created++;
   }
   console.log(`   ✔ สินค้า ${created} รายการใหม่ (ข้ามรายการที่มี SKU ซ้ำ)`);
+
+  // ---- ประวัติการเคลื่อนไหวตัวอย่าง (มีทั้งจ่ายออก OUT และรับเข้าเพิ่ม IN) ----
+  let moves = 0;
+  for (const m of movements) {
+    const product = await prisma.product.findUnique({ where: { sku: m.sku } });
+    if (!product) continue;
+
+    // idempotent: ข้ามถ้าเคยบันทึกเหตุผลนี้ให้สินค้าตัวนี้แล้ว
+    const dup = await prisma.stockTransaction.findFirst({
+      where: { productId: product.id, reason: m.reason },
+    });
+    if (dup) continue;
+
+    const newStock = product.stockQuantity + m.qty;
+    if (newStock < 0) continue; // กันสต็อกติดลบเหมือน API จริง
+
+    await prisma.$transaction([
+      prisma.product.update({ where: { id: product.id }, data: { stockQuantity: newStock } }),
+      prisma.stockTransaction.create({
+        data: {
+          productId: product.id,
+          type: m.qty > 0 ? 'IN' : 'OUT',
+          quantity: Math.abs(m.qty),
+          reason: m.reason,
+        },
+      }),
+    ]);
+    moves++;
+  }
+  console.log(`   ✔ ประวัติการเคลื่อนไหว ${moves} รายการ (รับเข้า/จ่ายออก)`);
   console.log('✅ Seed เสร็จสมบูรณ์');
 }
 

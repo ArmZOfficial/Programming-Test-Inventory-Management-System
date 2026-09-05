@@ -2,6 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getErrorMessage, getLowStock, getProducts, getTransactions } from '../api/inventoryApi';
 import {
+  IconBoxes,
+  IconCelebrate,
+  IconHistory,
+  IconIn,
+  IconMoney,
+  IconOut,
+  IconOutOfStock,
+  IconPackage,
+  IconPlus,
+  IconRefresh,
+  IconWarning,
+} from '../components/icons.jsx';
+import {
   Card,
   EmptyState,
   ErrorState,
@@ -46,10 +59,10 @@ export default function DashboardPage() {
   const outOfStock = products.filter((p) => p.stockQuantity <= 0).length;
 
   const stats = [
-    { icon: '📦', tone: '', label: 'สินค้าทั้งหมด', value: formatNumber(products.length), hint: 'รายการ (SKU)' },
-    { icon: '🧮', tone: 'ok', label: 'จำนวนชิ้นในคลัง', value: formatNumber(totalItems), hint: 'ชิ้น' },
-    { icon: '⚠️', tone: 'warn', label: 'ใกล้หมด (< 5)', value: formatNumber(low.length), hint: 'ต้องเติมสต็อก' },
-    { icon: '⛔', tone: 'danger', label: 'หมดสต็อก', value: formatNumber(outOfStock), hint: 'ขายไม่ได้' },
+    { Icon: IconPackage, tone: '', label: 'สินค้าทั้งหมด', value: formatNumber(products.length), hint: 'รายการ (SKU)' },
+    { Icon: IconBoxes, tone: 'ok', label: 'จำนวนชิ้นในคลัง', value: formatNumber(totalItems), hint: 'ชิ้น' },
+    { Icon: IconWarning, tone: 'warn', label: 'ใกล้หมด (< 5)', value: formatNumber(low.length), hint: 'ต้องเติมสต็อก' },
+    { Icon: IconOutOfStock, tone: 'danger', label: 'หมดสต็อก', value: formatNumber(outOfStock), hint: 'ขายไม่ได้' },
   ];
 
   return (
@@ -61,10 +74,10 @@ export default function DashboardPage() {
         </div>
         <div className="page-head__actions">
           <button type="button" className="btn" onClick={load} disabled={state.loading}>
-            {state.loading ? <span className="spinner" /> : '↻'} รีเฟรช
+            {state.loading ? <span className="spinner" /> : <IconRefresh size={16} />} รีเฟรช
           </button>
           <Link to="/products/new" className="btn btn--primary">
-            ➕ เพิ่มสินค้า
+            <IconPlus size={16} /> เพิ่มสินค้า
           </Link>
         </div>
       </div>
@@ -73,7 +86,7 @@ export default function DashboardPage() {
         {stats.map((s) => (
           <article className="stat" key={s.label}>
             <div className={`stat__icon${s.tone ? ` stat__icon--${s.tone}` : ''}`} aria-hidden="true">
-              {s.icon}
+              <s.Icon size={20} />
             </div>
             <div className="col">
               <span className="stat__label">{s.label}</span>
@@ -87,7 +100,7 @@ export default function DashboardPage() {
       <div className="stats" style={{ gridTemplateColumns: '1fr' }}>
         <article className="stat">
           <div className="stat__icon stat__icon--ok" aria-hidden="true">
-            💰
+            <IconMoney size={20} />
           </div>
           <div className="col">
             <span className="stat__label">มูลค่าสินค้าคงคลังรวม (ราคาทุน)</span>
@@ -107,13 +120,13 @@ export default function DashboardPage() {
           }
         >
           {txs.length === 0 ? (
-            <EmptyState icon="🕘" title="ยังไม่มีการเคลื่อนไหว" text="เมื่อมีการรับเข้า/จ่ายออก จะแสดงที่นี่" />
+            <EmptyState icon={IconHistory} title="ยังไม่มีการเคลื่อนไหว" text="เมื่อมีการรับเข้า/จ่ายออก จะแสดงที่นี่" />
           ) : (
             <div className="timeline">
               {txs.map((t) => (
                 <div className="timeline__item" key={t.id}>
                   <div className={`timeline__dot timeline__dot--${t.type.toLowerCase()}`} aria-hidden="true">
-                    {t.type === 'IN' ? '⬇' : '⬆'}
+                    {t.type === 'IN' ? <IconIn size={16} /> : <IconOut size={16} />}
                   </div>
                   <div className="col">
                     <span className="timeline__reason">{t.product?.name || `สินค้า #${t.productId}`}</span>
@@ -143,7 +156,7 @@ export default function DashboardPage() {
           }
         >
           {low.length === 0 ? (
-            <EmptyState icon="🎉" title="สต็อกทุกรายการเพียงพอ" text="ไม่มีสินค้าที่ต่ำกว่าเกณฑ์ 5 ชิ้น" />
+            <EmptyState icon={IconCelebrate} title="สต็อกทุกรายการเพียงพอ" text="ไม่มีสินค้าที่ต่ำกว่าเกณฑ์ 5 ชิ้น" />
           ) : (
             <div className="timeline">
               {low.slice(0, 6).map((p) => (

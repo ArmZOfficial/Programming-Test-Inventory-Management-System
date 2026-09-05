@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createCategory, getCategories, getErrorMessage } from '../api/inventoryApi';
 import { useToast } from '../components/Toast.jsx';
+import { IconTag } from '../components/icons.jsx';
 import { Card, EmptyState, ErrorState, formatNumber } from '../components/ui.jsx';
 
 /** จัดการหมวดหมู่สินค้า — ฟอร์มเพิ่มอยู่คู่กับรายการ เห็นผลทันทีหลังบันทึก */
@@ -66,7 +67,7 @@ export default function CategoriesPage() {
               ))}
             </div>
           ) : items.length === 0 ? (
-            <EmptyState icon="🏷️" title="ยังไม่มีหมวดหมู่" text="เพิ่มหมวดหมู่แรกจากฟอร์มด้านขวา" />
+            <EmptyState icon={IconTag} title="ยังไม่มีหมวดหมู่" text="เพิ่มหมวดหมู่แรกจากฟอร์มด้านขวา" />
           ) : (
             <div className="table-wrap">
               <table className="table">

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { adjustStock, getErrorMessage } from '../api/inventoryApi';
 import { useToast } from './Toast.jsx';
+import { IconClose, IconIn, IconOut, IconWarning } from './icons.jsx';
 import { formatNumber } from './ui.jsx';
 
 const REASONS_IN = ['รับสินค้าจาก PO', 'คืนสินค้าจากลูกค้า', 'ปรับยอดหลังนับสต็อก', 'โอนย้ายเข้าคลัง'];
@@ -84,7 +85,7 @@ export default function StockAdjustModal({ product, onClose, onSuccess }) {
             aria-label="ปิดหน้าต่าง"
             style={{ marginLeft: 'auto' }}
           >
-            ✕
+            <IconClose size={16} />
           </button>
         </header>
 
@@ -101,7 +102,7 @@ export default function StockAdjustModal({ product, onClose, onSuccess }) {
                   className={`segmented__opt${direction === 'in' ? ' is-active' : ''}`}
                   onClick={() => setDirection('in')}
                 >
-                  ⬇ รับเข้า
+                  <IconIn size={18} aria-hidden="true" /> รับเข้า
                   <small>เพิ่มสต็อก (IN)</small>
                 </button>
                 <button
@@ -112,7 +113,7 @@ export default function StockAdjustModal({ product, onClose, onSuccess }) {
                   className={`segmented__opt${direction === 'out' ? ' is-active' : ''}`}
                   onClick={() => setDirection('out')}
                 >
-                  ⬆ จ่ายออก
+                  <IconOut size={18} aria-hidden="true" /> จ่ายออก
                   <small>ลดสต็อก (OUT)</small>
                 </button>
               </div>
@@ -137,7 +138,7 @@ export default function StockAdjustModal({ product, onClose, onSuccess }) {
               />
               {notEnough ? (
                 <span className="field__error">
-                  ⚠️ สต็อกไม่เพียงพอ — คงเหลือเพียง {formatNumber(product.stockQuantity)} ชิ้น
+                  <IconWarning size={14} /> สต็อกไม่เพียงพอ — คงเหลือเพียง {formatNumber(product.stockQuantity)} ชิ้น
                 </span>
               ) : (
                 <span className="field__hint">กรอกเป็นจำนวนเต็มบวก ระบบจะคิดเครื่องหมายให้อัตโนมัติ</span>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getErrorMessage, getTransactions } from '../api/inventoryApi';
 import Pagination from '../components/Pagination.jsx';
+import { IconHistory, IconIn, IconOut } from '../components/icons.jsx';
 import { Card, EmptyState, ErrorState, formatDateTime, formatNumber } from '../components/ui.jsx';
 
 /** ประวัติการเคลื่อนไหวสต็อกทั้งระบบ — กรองด้วยประเภท IN / OUT */
@@ -41,8 +42,8 @@ export default function TransactionsPage() {
 
   const filters = [
     { value: '', label: 'ทั้งหมด' },
-    { value: 'IN', label: '⬇ รับเข้า' },
-    { value: 'OUT', label: '⬆ จ่ายออก' },
+    { value: 'IN', label: 'รับเข้า', Icon: IconIn },
+    { value: 'OUT', label: 'จ่ายออก', Icon: IconOut },
   ];
 
   return (
@@ -65,6 +66,7 @@ export default function TransactionsPage() {
                 className={`btn btn--sm${type === f.value ? ' btn--primary' : ''}`}
                 onClick={() => changeType(f.value)}
               >
+                {f.Icon && <f.Icon size={15} aria-hidden="true" />}
                 {f.label}
               </button>
             ))}
@@ -81,7 +83,7 @@ export default function TransactionsPage() {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <EmptyState icon="🕘" title="ยังไม่มีประวัติการเคลื่อนไหว" text="เริ่มต้นด้วยการปรับสต็อกสินค้าสักรายการ" />
+          <EmptyState icon={IconHistory} title="ยังไม่มีประวัติการเคลื่อนไหว" text="เริ่มต้นด้วยการปรับสต็อกสินค้าสักรายการ" />
         ) : (
           <div className="table-wrap">
             <table className="table">
@@ -108,7 +110,8 @@ export default function TransactionsPage() {
                     </td>
                     <td>
                       <span className={`badge badge--${t.type === 'IN' ? 'ok' : 'danger'}`}>
-                        {t.type === 'IN' ? '⬇ รับเข้า' : '⬆ จ่ายออก'}
+                        {t.type === 'IN' ? <IconIn size={14} /> : <IconOut size={14} />}
+                        {t.type === 'IN' ? 'รับเข้า' : 'จ่ายออก'}
                       </span>
                     </td>
                     <td className="num">

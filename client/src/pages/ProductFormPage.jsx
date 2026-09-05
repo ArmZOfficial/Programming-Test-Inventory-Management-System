@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createProduct, getCategories, getErrorMessage } from '../api/inventoryApi';
 import { useToast } from '../components/Toast.jsx';
+import { IconArrowLeft, IconTip, IconWarning } from '../components/icons.jsx';
 import { Card, formatMoney } from '../components/ui.jsx';
 
 const EMPTY = { name: '', sku: '', categoryId: '', costPrice: '', stockQuantity: '0' };
@@ -86,7 +87,7 @@ export default function ProductFormPage({ onChanged }) {
         </div>
         <div className="page-head__actions">
           <Link to="/products" className="btn">
-            ← กลับไปรายการสินค้า
+            <IconArrowLeft size={16} /> กลับไปรายการสินค้า
           </Link>
         </div>
       </div>
@@ -107,7 +108,7 @@ export default function ProductFormPage({ onChanged }) {
                 aria-invalid={!!errors.name}
                 autoFocus
               />
-              {errors.name && <span className="field__error">⚠️ {errors.name}</span>}
+              {errors.name && <span className="field__error"><IconWarning size={14} /> {errors.name}</span>}
             </div>
 
             <div className="form-grid">
@@ -124,7 +125,7 @@ export default function ProductFormPage({ onChanged }) {
                   aria-invalid={!!errors.sku}
                 />
                 {errors.sku ? (
-                  <span className="field__error">⚠️ {errors.sku}</span>
+                  <span className="field__error"><IconWarning size={14} /> {errors.sku}</span>
                 ) : (
                   <span className="field__hint">ต้องไม่ซ้ำกับสินค้าอื่นในระบบ</span>
                 )}
@@ -163,7 +164,7 @@ export default function ProductFormPage({ onChanged }) {
                   onChange={set('costPrice')}
                   aria-invalid={!!errors.costPrice}
                 />
-                {errors.costPrice && <span className="field__error">⚠️ {errors.costPrice}</span>}
+                {errors.costPrice && <span className="field__error"><IconWarning size={14} /> {errors.costPrice}</span>}
               </div>
 
               <div className="field">
@@ -182,7 +183,7 @@ export default function ProductFormPage({ onChanged }) {
                   aria-invalid={!!errors.stockQuantity}
                 />
                 {errors.stockQuantity ? (
-                  <span className="field__error">⚠️ {errors.stockQuantity}</span>
+                  <span className="field__error"><IconWarning size={14} /> {errors.stockQuantity}</span>
                 ) : (
                   <span className="field__hint">ถ้ามากกว่า 0 ระบบจะบันทึกเป็นรายการรับเข้า (IN) ให้อัตโนมัติ</span>
                 )}
@@ -218,7 +219,7 @@ export default function ProductFormPage({ onChanged }) {
               </div>
             </div>
             <div className="alert alert--info" style={{ marginBottom: 0 }}>
-              <span aria-hidden="true">💡</span>
+              <IconTip size={18} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} />
               <div>SKU ซ้ำจะถูกปฏิเสธจากเซิร์ฟเวอร์ (HTTP 409) เพื่อกันสินค้าซ้ำในระบบ</div>
             </div>
           </div>

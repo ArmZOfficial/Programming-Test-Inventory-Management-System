@@ -4,6 +4,14 @@ import { getCategories, getErrorMessage, getProducts } from '../api/inventoryApi
 import Pagination from '../components/Pagination.jsx';
 import ProductTable from '../components/ProductTable.jsx';
 import StockAdjustModal from '../components/StockAdjustModal.jsx';
+import {
+  IconClose,
+  IconPackage,
+  IconPackageSearch,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+} from '../components/icons.jsx';
 import { EmptyState, ErrorState } from '../components/ui.jsx';
 
 /** หน้ารายการสินค้า — ค้นหา / กรองหมวดหมู่ / แบ่งหน้า / ปรับสต็อกได้ในตัว */
@@ -61,7 +69,7 @@ export default function ProductListPage({ onChanged }) {
         </div>
         <div className="page-head__actions">
           <Link to="/products/new" className="btn btn--primary">
-            ➕ เพิ่มสินค้า
+            <IconPlus size={16} /> เพิ่มสินค้า
           </Link>
         </div>
       </div>
@@ -71,7 +79,7 @@ export default function ProductListPage({ onChanged }) {
           <div className="toolbar" style={{ width: '100%' }}>
             <div className="search">
               <span className="search__icon" aria-hidden="true">
-                🔍
+                <IconSearch size={15} />
               </span>
               <input
                 className="input"
@@ -107,12 +115,12 @@ export default function ProductListPage({ onChanged }) {
                   setFilters({ q: '', categoryId: '', page: 1 });
                 }}
               >
-                ✕ ล้างตัวกรอง
+                <IconClose size={15} /> ล้างตัวกรอง
               </button>
             )}
 
             <button type="button" className="btn" onClick={load} disabled={state.loading}>
-              ↻ รีเฟรช
+              <IconRefresh size={15} /> รีเฟรช
             </button>
           </div>
         </div>
@@ -128,7 +136,7 @@ export default function ProductListPage({ onChanged }) {
               emptyState={
                 hasFilter ? (
                   <EmptyState
-                    icon="🔍"
+                    icon={IconPackageSearch}
                     title="ไม่พบสินค้าที่ตรงกับเงื่อนไข"
                     text="ลองเปลี่ยนคำค้นหา หรือล้างตัวกรองดู"
                     action={
@@ -146,12 +154,12 @@ export default function ProductListPage({ onChanged }) {
                   />
                 ) : (
                   <EmptyState
-                    icon="📦"
+                    icon={IconPackage}
                     title="ยังไม่มีสินค้าในระบบ"
                     text="เริ่มต้นด้วยการเพิ่มสินค้ารายการแรกของคุณ"
                     action={
                       <Link to="/products/new" className="btn btn--primary">
-                        ➕ เพิ่มสินค้า
+                        <IconPlus size={16} /> เพิ่มสินค้า
                       </Link>
                     }
                   />

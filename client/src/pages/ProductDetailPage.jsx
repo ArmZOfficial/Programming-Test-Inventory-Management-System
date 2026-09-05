@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getErrorMessage, getProduct } from '../api/inventoryApi';
+import Pagination from '../components/Pagination.jsx';
 import StockAdjustModal from '../components/StockAdjustModal.jsx';
+import { IconArrowLeft, IconHistory, IconIn, IconMoney, IconOut, IconPackage } from '../components/icons.jsx';
 import {
   Card,
   EmptyState,
@@ -12,12 +14,15 @@ import {
   formatNumber,
 } from '../components/ui.jsx';
 
-/** หน้ารายละเอียดสินค้า + ไทม์ไลน์ประวัติการเคลื่อนไหวสต็อกทั้งหมด */
+const PAGE_SIZE = 15;
+
+/** หน้ารายละเอียดสินค้า + ไทม์ไลน์ประวัติการเคลื่อนไหวสต็อก (แบ่งหน้า) */
 export default function ProductDetailPage({ onChanged }) {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [state, setState] = useState({ loading: true, error: null });
   const [adjusting, setAdjusting] = useState(false);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setState({ loading: true, error: null });
@@ -34,6 +39,16 @@ export default function ProductDetailPage({ onChanged }) {
     load();
   }, [load]);
 
+  // เปลี่ยนสินค้า → กลับไปหน้าแรกของประวัติเสมอ
+  useEffect(() => setPage(1), [id]);
+
+  const transactions = product?.transactions ?? [];
+  const totalPages = Math.max(1, Math.ceil(transactions.length / PAGE_SIZE));
+  const pageItems = useMemo(
+    () => transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [transactions, page]
+  );
+
   if (state.loading) {
     return (
       <div className="card">
@@ -49,8 +64,8 @@ export default function ProductDetailPage({ onChanged }) {
   if (state.error) return <ErrorState message={state.error} onRetry={load} />;
   if (!product) return null;
 
-  const totalIn = product.transactions.filter((t) => t.type === 'IN').reduce((s, t) => s + t.quantity, 0);
-  const totalOut = product.transactions.filter((t) => t.type === 'OUT').reduce((s, t) => s + t.quantity, 0);
+  const totalIn = transactions.filter((t) => t.type === 'IN').reduce((s, t) => s + t.quantity, 0);
+  const totalOut = transactions.filter((t) => t.type === 'OUT').reduce((s, t) => s + t.quantity, 0);
 
   return (
     <div data-page="product-detail">
@@ -68,7 +83,7 @@ export default function ProductDetailPage({ onChanged }) {
         </div>
         <div className="page-head__actions">
           <Link to="/products" className="btn">
-            ← กลับ
+            <IconArrowLeft size={16} /> กลับ
           </Link>
           <button type="button" className="btn btn--primary" onClick={() => setAdjusting(true)}>
             ปรับสต็อก
@@ -79,7 +94,7 @@ export default function ProductDetailPage({ onChanged }) {
       <div className="stats">
         <article className="stat">
           <div className="stat__icon" aria-hidden="true">
-            📦
+            <IconPackage size={20} />
           </div>
           <div className="col">
             <span className="stat__label">คงเหลือปัจจุบัน</span>
@@ -89,7 +104,7 @@ export default function ProductDetailPage({ onChanged }) {
         </article>
         <article className="stat">
           <div className="stat__icon stat__icon--ok" aria-hidden="true">
-            ⬇
+            <IconIn size={20} />
           </div>
           <div className="col">
             <span className="stat__label">รับเข้าสะสม</span>
@@ -99,7 +114,7 @@ export default function ProductDetailPage({ onChanged }) {
         </article>
         <article className="stat">
           <div className="stat__icon stat__icon--danger" aria-hidden="true">
-            ⬆
+            <IconOut size={20} />
           </div>
           <div className="col">
             <span className="stat__label">จ่ายออกสะสม</span>
@@ -109,7 +124,7 @@ export default function ProductDetailPage({ onChanged }) {
         </article>
         <article className="stat">
           <div className="stat__icon stat__icon--warn" aria-hidden="true">
-            💰
+            <IconMoney size={20} />
           </div>
           <div className="col">
             <span className="stat__label">มูลค่าคงคลัง</span>
@@ -119,32 +134,42 @@ export default function ProductDetailPage({ onChanged }) {
         </article>
       </div>
 
-      <Card title={`ประวัติการเคลื่อนไหว (${product.transactions.length} รายการ)`}>
-        {product.transactions.length === 0 ? (
-          <EmptyState icon="🕘" title="ยังไม่มีประวัติ" text="เมื่อมีการปรับสต็อก รายการจะแสดงที่นี่" />
+      <Card title={`ประวัติการเคลื่อนไหว (${formatNumber(transactions.length)} รายการ)`} bodyless>
+        {transactions.length === 0 ? (
+          <EmptyState icon={IconHistory} title="ยังไม่มีประวัติ" text="เมื่อมีการปรับสต็อก รายการจะแสดงที่นี่" />
         ) : (
-          <div className="timeline">
-            {product.transactions.map((t) => (
-              <div className="timeline__item" key={t.id}>
-                <div className={`timeline__dot timeline__dot--${t.type.toLowerCase()}`} aria-hidden="true">
-                  {t.type === 'IN' ? '⬇' : '⬆'}
-                </div>
-                <div className="col">
-                  <span className="timeline__reason">{t.reason}</span>
-                  <span className="timeline__meta">
-                    {t.type === 'IN' ? 'รับเข้า' : 'จ่ายออก'} · {formatDateTime(t.createdAt)}
+          <>
+            <div className="timeline" style={{ padding: '0 20px' }}>
+              {pageItems.map((t) => (
+                <div className="timeline__item" key={t.id}>
+                  <div className={`timeline__dot timeline__dot--${t.type.toLowerCase()}`} aria-hidden="true">
+                    {t.type === 'IN' ? <IconIn size={16} /> : <IconOut size={16} />}
+                  </div>
+                  <div className="col">
+                    <span className="timeline__reason">{t.reason}</span>
+                    <span className="timeline__meta">
+                      {t.type === 'IN' ? 'รับเข้า' : 'จ่ายออก'} · {formatDateTime(t.createdAt)}
+                    </span>
+                  </div>
+                  <span
+                    className="timeline__qty"
+                    style={{ color: t.type === 'IN' ? 'var(--ok-fg)' : 'var(--danger-fg)' }}
+                  >
+                    {t.type === 'IN' ? '+' : '−'}
+                    {formatNumber(t.quantity)}
                   </span>
                 </div>
-                <span
-                  className="timeline__qty"
-                  style={{ color: t.type === 'IN' ? 'var(--ok-fg)' : 'var(--danger-fg)' }}
-                >
-                  {t.type === 'IN' ? '+' : '−'}
-                  {formatNumber(t.quantity)}
-                </span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={transactions.length}
+              showing={pageItems.length}
+              onChange={setPage}
+            />
+          </>
         )}
       </Card>
 
@@ -154,6 +179,7 @@ export default function ProductDetailPage({ onChanged }) {
           onClose={() => setAdjusting(false)}
           onSuccess={() => {
             load();
+            setPage(1);
             onChanged?.();
           }}
         />

@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { getHealth, getLowStock } from './api/inventoryApi';
+import {
+  IconBell,
+  IconBoxes,
+  IconCompass,
+  IconHistory,
+  IconMenu,
+  IconMoon,
+  IconPackage,
+  IconPlug,
+  IconPlus,
+  IconSun,
+  IconTag,
+} from './components/icons.jsx';
+import { BarChart3 as IconDashboard } from 'lucide-react';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ProductListPage from './pages/ProductListPage.jsx';
 import ProductFormPage from './pages/ProductFormPage.jsx';
@@ -10,12 +24,12 @@ import CategoriesPage from './pages/CategoriesPage.jsx';
 import TransactionsPage from './pages/TransactionsPage.jsx';
 
 const NAV = [
-  { to: '/dashboard', label: 'ภาพรวม', icon: '📊' },
-  { to: '/products', label: 'รายการสินค้า', icon: '📦' },
-  { to: '/products/new', label: 'เพิ่มสินค้า', icon: '➕' },
-  { to: '/low-stock', label: 'สินค้าใกล้หมด', icon: '🔔', badge: 'lowStock' },
-  { to: '/transactions', label: 'ประวัติสต็อก', icon: '🕘' },
-  { to: '/categories', label: 'หมวดหมู่', icon: '🏷️' },
+  { to: '/dashboard', label: 'ภาพรวม', Icon: IconDashboard },
+  { to: '/products', label: 'รายการสินค้า', Icon: IconPackage },
+  { to: '/products/new', label: 'เพิ่มสินค้า', Icon: IconPlus },
+  { to: '/low-stock', label: 'สินค้าใกล้หมด', Icon: IconBell, badge: 'lowStock' },
+  { to: '/transactions', label: 'ประวัติสต็อก', Icon: IconHistory },
+  { to: '/categories', label: 'หมวดหมู่', Icon: IconTag },
 ];
 
 const TITLES = {
@@ -66,7 +80,7 @@ export default function App() {
       <aside className={`sidebar${menuOpen ? ' is-open' : ''}`} data-role="sidebar">
         <div className="brand">
           <div className="brand__mark" aria-hidden="true">
-            📦
+            <IconBoxes size={21} />
           </div>
           <div className="col">
             <span className="brand__name">สินค้าคงคลัง</span>
@@ -84,7 +98,7 @@ export default function App() {
               className={({ isActive }) => `nav__item${isActive ? ' is-active' : ''}`}
             >
               <span className="nav__icon" aria-hidden="true">
-                {item.icon}
+                <item.Icon size={18} />
               </span>
               {item.label}
               {item.badge === 'lowStock' && lowCount > 0 && <span className="nav__count">{lowCount}</span>}
@@ -112,7 +126,7 @@ export default function App() {
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="เปิด/ปิดเมนู"
           >
-            ☰
+            <IconMenu size={18} />
           </button>
           <span className="topbar__title">{title}</span>
           <div className="topbar__spacer" />
@@ -123,14 +137,14 @@ export default function App() {
             aria-label={theme === 'dark' ? 'สลับเป็นธีมสว่าง' : 'สลับเป็นธีมมืด'}
             title={theme === 'dark' ? 'ธีมสว่าง' : 'ธีมมืด'}
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
           </button>
         </header>
 
         <main className="content">
           {apiUp === false && (
             <div className="alert alert--danger" role="alert">
-              <span aria-hidden="true">🔌</span>
+              <IconPlug size={18} aria-hidden="true" style={{ flex: "none", marginTop: 2 }} />
               <div>
                 <strong>เชื่อมต่อ API ไม่ได้</strong>
                 <div>
@@ -154,7 +168,9 @@ export default function App() {
               path="*"
               element={
                 <div className="state">
-                  <div className="state__icon">🧭</div>
+                  <div className="state__icon">
+                    <IconCompass size={40} strokeWidth={1.5} />
+                  </div>
                   <p className="state__title">ไม่พบหน้าที่ต้องการ</p>
                 </div>
               }

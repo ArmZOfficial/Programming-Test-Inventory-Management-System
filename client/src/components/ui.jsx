@@ -2,6 +2,7 @@
  * ชิ้นส่วน UI เล็กๆ ที่ใช้ซ้ำทั้งระบบ + ตัวช่วย format
  * ทุกตัวมี data-role เพื่อให้เปลี่ยนไปใช้ UI library ทีหลังได้โดยไม่ต้องรื้อ logic
  */
+import { IconEmpty, IconOutOfStock, IconPlug, IconSuccess, IconWarning } from './icons.jsx';
 
 export const LOW_STOCK_THRESHOLD = 5;
 
@@ -20,16 +21,16 @@ export const formatDateTime = (iso) =>
 
 /** จัดระดับสต็อกเป็น 3 ระดับ เพื่อสื่อสารด้วยสีให้ผู้ใช้เข้าใจทันที */
 export function stockLevel(qty, threshold = LOW_STOCK_THRESHOLD) {
-  if (qty <= 0) return { tone: 'danger', label: 'หมดสต็อก', icon: '⛔' };
-  if (qty < threshold) return { tone: 'warn', label: 'ใกล้หมด', icon: '⚠️' };
-  return { tone: 'ok', label: 'ปกติ', icon: '✅' };
+  if (qty <= 0) return { tone: 'danger', label: 'หมดสต็อก', Icon: IconOutOfStock };
+  if (qty < threshold) return { tone: 'warn', label: 'ใกล้หมด', Icon: IconWarning };
+  return { tone: 'ok', label: 'ปกติ', Icon: IconSuccess };
 }
 
 export function StockBadge({ qty, threshold = LOW_STOCK_THRESHOLD }) {
   const lv = stockLevel(qty, threshold);
   return (
     <span className={`badge badge--${lv.tone}`} data-role="stock-badge" title={`คงเหลือ ${qty} ชิ้น`}>
-      <span aria-hidden="true">{lv.icon}</span>
+      <lv.Icon size={14} aria-hidden="true" />
       {lv.label}
     </span>
   );
@@ -62,11 +63,11 @@ export function Card({ title, actions, children, bodyless = false }) {
   );
 }
 
-export function EmptyState({ icon = '📭', title, text, action }) {
+export function EmptyState({ icon: Icon = IconEmpty, title, text, action }) {
   return (
     <div className="state" data-role="empty-state">
       <div className="state__icon" aria-hidden="true">
-        {icon}
+        <Icon size={40} strokeWidth={1.5} />
       </div>
       <p className="state__title">{title}</p>
       {text && <p className="state__text">{text}</p>}
@@ -79,7 +80,7 @@ export function ErrorState({ message, onRetry }) {
   return (
     <div className="state" data-role="error-state">
       <div className="state__icon" aria-hidden="true">
-        🔌
+        <IconPlug size={40} strokeWidth={1.5} />
       </div>
       <p className="state__title">โหลดข้อมูลไม่สำเร็จ</p>
       <p className="state__text">{message}</p>

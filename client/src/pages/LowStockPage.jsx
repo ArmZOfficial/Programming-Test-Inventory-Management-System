@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getErrorMessage, getLowStock } from '../api/inventoryApi';
+import Pagination from '../components/Pagination.jsx';
 import ProductTable from '../components/ProductTable.jsx';
 import StockAdjustModal from '../components/StockAdjustModal.jsx';
+import { IconBell, IconCelebrate, IconRefresh, IconWarning } from '../components/icons.jsx';
 import { EmptyState, ErrorState, formatNumber } from '../components/ui.jsx';
 
 const PRESETS = [3, 5, 10, 20];
+const PAGE_SIZE = 10;
 
 /** หน้าแจ้งเตือนสินค้าใกล้หมด — ปรับเกณฑ์ (threshold) ได้เอง ค่าเริ่มต้น < 5 ตามโจทย์ */
 export default function LowStockPage({ onChanged }) {
@@ -13,6 +16,7 @@ export default function LowStockPage({ onChanged }) {
   const [items, setItems] = useState([]);
   const [state, setState] = useState({ loading: true, error: null });
   const [adjusting, setAdjusting] = useState(null);
+  const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setState({ loading: true, error: null });
@@ -29,13 +33,20 @@ export default function LowStockPage({ onChanged }) {
     load();
   }, [load]);
 
+  // เปลี่ยนเกณฑ์แล้วกลับไปหน้าแรกเสมอ
+  useEffect(() => setPage(1), [threshold]);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const pageItems = useMemo(() => items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [items, page]);
   const outOfStock = items.filter((p) => p.stockQuantity <= 0).length;
 
   return (
     <div data-page="low-stock">
       <div className="page-head">
         <div className="page-head__text">
-          <h1>🔔 สินค้าใกล้หมด</h1>
+          <h1 className="row">
+            <IconBell size={22} aria-hidden="true" /> สินค้าใกล้หมด
+          </h1>
           <p>
             สินค้าที่มีจำนวนคงเหลือ <strong>น้อยกว่า {threshold} ชิ้น</strong> — ควรเติมสต็อกก่อนขายไม่ได้
           </p>
@@ -49,7 +60,7 @@ export default function LowStockPage({ onChanged }) {
 
       {!state.loading && items.length > 0 && (
         <div className="alert alert--warn" role="status">
-          <span aria-hidden="true">⚠️</span>
+          <IconWarning size={18} aria-hidden="true" style={{ flex: 'none', marginTop: 2 }} />
           <div>
             พบ <strong>{formatNumber(items.length)}</strong> รายการที่ต้องเติมสต็อก
             {outOfStock > 0 && (
@@ -89,7 +100,7 @@ export default function LowStockPage({ onChanged }) {
               aria-label="กำหนดเกณฑ์แจ้งเตือนเอง"
             />
             <button type="button" className="btn" onClick={load} disabled={state.loading}>
-              ↻ รีเฟรช
+              <IconRefresh size={15} /> รีเฟรช
             </button>
           </div>
         </div>
@@ -97,14 +108,15 @@ export default function LowStockPage({ onChanged }) {
         {state.error ? (
           <ErrorState message={state.error} onRetry={load} />
         ) : (
+          <>
           <ProductTable
-            products={items}
+            products={pageItems}
             loading={state.loading}
             threshold={threshold}
             onAdjust={setAdjusting}
             emptyState={
               <EmptyState
-                icon="🎉"
+                icon={IconCelebrate}
                 title="ไม่มีสินค้าที่ใกล้หมด"
                 text={`ทุกรายการมีสต็อกตั้งแต่ ${threshold} ชิ้นขึ้นไป`}
                 action={
@@ -115,6 +127,10 @@ export default function LowStockPage({ onChanged }) {
               />
             }
           />
+          {!state.loading && (
+            <Pagination page={page} totalPages={totalPages} total={items.length} showing={pageItems.length} onChange={setPage} />
+          )}
+          </>
         )}
       </section>
 

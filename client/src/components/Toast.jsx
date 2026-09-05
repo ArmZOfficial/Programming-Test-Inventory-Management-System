@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { IconClose, IconInfo, IconSuccess, IconWarning } from './icons.jsx';
 
 /**
  * ระบบแจ้งเตือนแบบ toast — ให้ feedback ทุกครั้งที่ผู้ใช้ทำ action
@@ -33,15 +34,17 @@ export function ToastProvider({ children }) {
     [push]
   );
 
-  const icons = { success: '✅', error: '⚠️', info: 'ℹ️' };
+  const icons = { success: IconSuccess, error: IconWarning, info: IconInfo };
 
   return (
     <ToastContext.Provider value={api}>
       {children}
       <div className="toasts" role="status" aria-live="polite" data-role="toast-stack">
-        {items.map((t) => (
+        {items.map((t) => {
+          const Icon = icons[t.type];
+          return (
           <div key={t.id} className={`toast toast--${t.type}`}>
-            <span aria-hidden="true">{icons[t.type]}</span>
+            <Icon size={18} aria-hidden="true" style={{ flex: "none", marginTop: 2 }} />
             <div className="col">
               <span className="toast__title">{t.title}</span>
               {t.msg && <span className="toast__msg">{t.msg}</span>}
@@ -53,10 +56,11 @@ export function ToastProvider({ children }) {
               aria-label="ปิดการแจ้งเตือน"
               style={{ marginLeft: 'auto' }}
             >
-              ✕
+              <IconClose size={14} />
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

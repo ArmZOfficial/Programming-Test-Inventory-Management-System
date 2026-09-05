@@ -7,12 +7,33 @@
 
 ---
 
+## ⚠️ สถานะปัจจุบัน: ยังเป็น Development Mode
+
+ระบบนี้ตั้งค่าไว้สำหรับ **การพัฒนา/สาธิต** ยังไม่พร้อมเปิดใช้งานจริง:
+
+| หัวข้อ | ตอนนี้ |
+|---|---|
+| ฐานข้อมูล | **SQLite ไฟล์เดียว** (`server/prisma/dev.db`) — ไม่รองรับหลาย instance / ไม่มี backup |
+| ข้อมูล | เป็น **ข้อมูล seed ตัวอย่าง** ไม่ใช่ข้อมูลจริง |
+| Migration | ใช้ `prisma migrate dev` (ห้ามใช้บน production) |
+| CORS | เปิดทุก origin |
+| Authentication | **ยังไม่มี** — ใครยิง API ได้ก็แก้สต็อกได้ |
+| Frontend | รันด้วย Vite dev server (ยังไม่ได้ build เป็น static) |
+
+👉 **วิธีทำให้พร้อมขึ้นใช้งานจริงทีละขั้น อยู่ใน [DEPLOYMENT.md](DEPLOYMENT.md)**
+(เปลี่ยนเป็น PostgreSQL, `migrate deploy`, จำกัด CORS, ใส่ auth + helmet + rate limit, build frontend, PM2/Docker, backup, monitoring)
+
+> ข่าวดี: **logic หลักไม่ต้องแก้เลยตอนย้ายขึ้น production** เพราะการอัปเดตสต็อกกับการบันทึกประวัติอยู่ใน database transaction เดียวกันตั้งแต่แรก
+
+---
+
 ## 📑 สารบัญเอกสาร
 
 | เอกสาร | เนื้อหา |
 |---|---|
 | [ER_DIAGRAM.md](ER_DIAGRAM.md) | แผนภาพ ER, ความสัมพันธ์, เหตุผลการออกแบบ, SQL จริง |
 | [API_DOCS.md](API_DOCS.md) | URL / Method / Header / Request Body / Response (success + error) ครบทุก endpoint |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | สถานะ dev mode ปัจจุบัน + ขั้นตอนทำให้พร้อมใช้งานจริง |
 
 ---
 
